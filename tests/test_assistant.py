@@ -157,6 +157,8 @@ class ModeRuleTests(unittest.TestCase):
         self.assertNotIn("brain-mode", body)
         self.assertIn('class="booting"', body)
         self.assertIn("function startBoot()", html)
+        self.assertIn("if(event.key==='Escape')", html)
+        self.assertIn("else hideBrain()", html)
 
 
 if __name__ == "__main__":
