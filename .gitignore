@@ -1,4 +1,6 @@
 .env
 notes.json*
+knowledge_index.json
+jarvis_config.json
 __pycache__/
 *.py[cod]
