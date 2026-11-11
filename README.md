@@ -1,37 +1,120 @@
 # J.A.R.V.I.S.
 
-A local Python server for the single-file HUD and knowledge brain. The HUD is the default view; the gold brain appears only after an explicit brain command. The server binds to `127.0.0.1` and uses only Python's standard library.
+A local Python assistant with a cyan sci-fi HUD and an optional golden knowledge brain. The HUD is always the default on page load; the brain view opens only when requested. The browser UI is one self-contained HTML file, and the Python standard library provides the local server and assistant APIs.
+
+![HUD screenshot placeholder](docs/hud-placeholder.svg)
+
+![Knowledge brain screenshot placeholder](docs/brain-placeholder.svg)
+
+## Features
+
+- OpenAI Responses API chat with a concise JARVIS persona and the latest ten conversation turns held in server memory.
+- Server-side Fish Audio text-to-speech (TTS), with browser speech synthesis as a fallback. API credentials stay on the local server.
+- Local notes and a searchable knowledge folder containing Markdown, text, and PDF documents. Documents are chunked with overlap, indexed in a local JSON file, and only re-extracted when their SHA-256 hash changes.
+- BM25-style local retrieval. The best matching excerpts are shown with their source names; with **Share knowledge with AI** disabled, document text is never sent to an AI service. If enabled, retrieved excerpts are sent to OpenAI as context.
+- Golden brain nodes and links for repository features, notes, and indexed documents. Click a knowledge node to read its summary; **Open file** asks for confirmation first.
+- Three auto-loaded skills: weather placeholder, local timer/reminder, and unit conversion. Invalid skill files are skipped with a warning.
+- Settings for sound, spoken replies, speech speed, reduced motion, particle density, accent intensity, knowledge folder, and document sharing. Settings are stored locally in `jarvis_config.json`; this file is ignored by Git.
+- Optional Web Audio sound effects, browser voice input, a Jarvis wake-word filter, low-motion support, tab-hidden animation pause, and reduced particle density when rendering slows.
 
 ## Setup
 
-1. Use Python 3.10 or newer.
-2. Copy `.env.example` to `.env` and set `OPENAI_API_KEY` to an API key from your OpenAI developer account. The key is read only by the local Python server and is never sent to the browser. `OPENAI_MODEL` is optional and defaults to `gpt-4o-mini`.
-3. Start the UI:
+1. Use Python 3.10 or newer. Copy `.env.example` to `.env` and add your keys:
+
+   ```sh
+   cp .env.example .env
+   ```
+
+   Set `OPENAI_API_KEY` for AI chat. Set `FISH_API_KEY` to enable Fish Audio TTS. Optional variables are `OPENAI_MODEL`, `FISH_MODEL`, `FISH_VOICE_ID`, and `KNOWLEDGE_DIR`. The local server reads `.env` without overriding environment variables already set by your shell.
+
+2. Start the server:
 
    ```sh
    python3 jarvis_ui/server.py
    ```
 
-4. Open <http://127.0.0.1:8765/>. If port 8765 is occupied, use `JARVIS_PORT=8766 python3 jarvis_ui/server.py` and open port 8766 instead.
+3. Open <http://127.0.0.1:8765/>. Use `JARVIS_PORT=8766 python3 jarvis_ui/server.py` to select another port.
 
-The AI uses the OpenAI Responses API. If the key is absent or the request fails, J.A.R.V.I.S. gives a friendly local fallback. The most recent ten user/assistant turns are held in server memory. Taught notes are stored in `notes.json` locally and excluded from Git. No dependency or API key is committed.
+Python dependencies: **none**. PDF text extraction uses `pdftotext` from Poppler; install it if you want PDF indexing. Markdown and text indexing work without it. No `.env`, API keys, notes, settings, or knowledge index belong in Git; `.env`, `notes.json*`, `knowledge_index.json`, and `jarvis_config.json` are ignored.
 
-## Voice
+### Voice requirements
 
-Voice input requires a browser that supports the Web Speech API, microphone permission, and a secure context. `localhost` and `127.0.0.1` are suitable local contexts. Click the microphone to start/stop listening. The optional **WAKE** toggle filters voice input for “Jarvis”; with it off, recognized commands are handled directly. Spoken replies use browser speech synthesis and can be silenced with **SOUND**.
+Voice input uses the browser Web Speech API and needs a supported browser plus microphone permission. `localhost` and `127.0.0.1` count as secure contexts. Voice input may not be available in every browser. Spoken replies use Fish Audio when `FISH_API_KEY` is configured and the **Voice** setting is on; if the service is unavailable, the UI tries browser speech synthesis. The voice setting is off by default. Fish Audio receives the reply text for speech generation; knowledge document excerpts are not sent to Fish Audio.
+
+### GitHub Pages
+
+The HTML page can be hosted as a static GitHub Pages asset, but its `/api/...` requests require the local Python backend. Run that backend separately and configure an appropriate reachable backend URL before using a hosted page; do not expose API keys in static JavaScript. The included server binds to loopback for local use.
+
+## Knowledge folder
+
+Put `.md`, `.txt`, or `.pdf` files in `knowledge/`, or choose a different local path in the settings panel (or set `KNOWLEDGE_DIR`). The server indexes the folder at startup and after a folder change. Use **INDEX NOW** or `index knowledge` to rescan. Files are processed locally; there is no upload unless **Share knowledge with AI** is deliberately enabled. The JSON index is local and ignored by Git. `forget <file>` removes a matching item from that index but leaves the source file on disk. `what's new in your brain` reports files indexed or changed within the last seven days.
 
 ## Commands
 
-- `show brain`, `open the brain`, `show your knowledge brain`, or `brain` — show the gold knowledge view.
-- `hide brain`, `back`, or `interface` — return to the cyan HUD.
-- `time` / `what time is it`; `date` / `what is the date` — local clock commands.
-- `remember that ...` — save a note and flash its brain node on the next brain view.
-- `forget ...` — remove notes whose title or text matches the topic.
-- `what do you know about ...` — show and highlight a matching note or repository feature; otherwise ask the AI.
-- `open website example.com` or `open https://example.com` — ask for confirmation, then open a new tab after `yes` or the **YES** button. Say/type `no` or use **NO** to cancel.
-- `web search for ...` — ask for confirmation before opening search results.
-- `system status` / `status` — report available CPU load, memory, and battery readings.
-- `set timer for 5 minutes` or `timer 30 seconds` — start a timer.
-- Any other text is sent to the AI backend. Opening local apps and files is not supported by this web UI.
+### Modes and local utilities
 
-Click a visible brain node to show its associated note or feature description. Reduced-motion settings stop automatic brain drift and CSS animation.
+- `show brain`, `open the brain`, `show your knowledge brain`, or `brain` — open the golden brain. It is never shown on page load.
+- `hide brain`, `back`, or `interface` — return to the cyan HUD.
+- `time`, `what time is it`, `date`, or `what is the date` — local clock response.
+- `system status` — report available CPU load, memory, and battery readings.
+- `index knowledge` — rescan the configured knowledge folder.
+- `remember that ...` / `forget ...` — add or remove a personal note; forget can also remove a matching document from the local index.
+
+### Knowledge and skills
+
+- `what do you know about <topic>` — search local indexed files, notes, and repository features. A document answer includes its source filename; the matching brain nodes are highlighted.
+- `what's new in your brain` — list recent indexed files.
+- `list your skills` — list active skills.
+- `weather in <place>` / `forecast ...` — explains that the included weather provider is a placeholder; it makes no network request.
+- `set timer for 5 minutes` / `timer 30 seconds` / `remind me in 1 hour` — local browser timer.
+- `convert 5 km to miles` — convert common length or mass units, or Celsius/Fahrenheit.
+
+### Web and confirmation
+
+- `open website example.com` or `open https://example.com` — asks **Shall I proceed, sir?** before opening a tab.
+- `web search for <query>` — asks before opening a search results tab.
+- `yes` / **YES** confirms a pending action; `no` / **NO** cancels it. The web UI does not launch local apps or shell commands.
+
+Any other text is sent to the configured AI backend. Empty and overlong inputs are rejected locally with an in-character response.
+
+## Add a skill
+
+Create one Python file in `skills/`. The server loads every non-underscore `.py` file at startup. A skill exports a display `name`, a non-empty list of regex strings in `trigger_phrases`, a `handler(text)` function returning a reply, and optionally a `capabilities` list. Allowed capabilities are `files`, `programs`, and `network`; any non-empty list causes J.A.R.V.I.S. to ask for confirmation before calling the handler. Never build shell commands from AI output.
+
+```python
+import re
+
+name = "Example"
+trigger_phrases = [r"\bexample phrase\b"]
+capabilities = []  # use files/programs/network when applicable
+
+def handler(text):
+    match = re.search(r"example phrase\s+(.+)", text, re.I)
+    return f"I found {match.group(1)}, sir." if match else "Please clarify, sir."
+```
+
+Broken or malformed skills are skipped with a warning, and other skills continue loading.
+
+## Keyboard shortcuts
+
+- **Enter** — send the command.
+- **Esc** — close settings or return to the HUD.
+- **B** — toggle brain, unless the command input is focused.
+- Click or press a key during startup to skip the boot sequence.
+
+## Tests
+
+Run the standard-library test suite:
+
+```sh
+python3 -m unittest discover -s tests -v
+```
+
+## Troubleshooting
+
+- **AI is offline:** check `OPENAI_API_KEY`, internet access, and the configured model in `.env`; restart the local server after environment changes.
+- **Fish Audio voice unavailable:** check `FISH_API_KEY`, model/voice settings, internet access, and the browser console/network response. Browser speech synthesis is used as a fallback when supported.
+- **No microphone input:** allow microphone access and use a browser with Web Speech API support. Voice input is an optional browser feature.
+- **PDF is missing from the index:** install Poppler's `pdftotext`, then choose **INDEX NOW**.
+- **Knowledge results are stale:** run `index knowledge`, check the configured folder path, and verify that the file is `.md`, `.txt`, or `.pdf`.
+- **Settings or index files are not visible in Git:** this is expected; local configuration and private knowledge files are ignored.
