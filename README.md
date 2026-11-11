@@ -43,7 +43,7 @@ Voice input uses the browser Web Speech API and needs a supported browser plus m
 
 ### GitHub Pages
 
-The HTML page can be hosted as a static GitHub Pages asset, but its `/api/...` requests require the local Python backend. Run that backend separately and configure an appropriate reachable backend URL before using a hosted page; do not expose API keys in static JavaScript. The included server binds to loopback for local use.
+GitHub Pages can serve the static HTML, but it cannot run the Python assistant. The UI sends `/api/...` requests to the same origin, so a Pages deployment also needs a separately hosted backend behind a compatible reverse proxy or an explicit UI API-base configuration. The included server binds to loopback for local use; do not expose API keys in static JavaScript.
 
 ## Knowledge folder
 
